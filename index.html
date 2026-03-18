@@ -3,67 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BIM 房间全属性查询系统</title>
+    <title>BIM 房间属性云端查询系统</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --primary-color: #0067FF;
-            --bg-color: #F4F7F9;
-            --sidebar-bg: #1A1C1E;
-            --text-main: #1D1D1F;
-            --text-sub: #86868B;
-            --border-color: #E5E5E7;
-        }
-
-        body { font-family: 'Inter', -apple-system, sans-serif; background-color: var(--bg-color); margin: 0; height: 100vh; display: flex; overflow: hidden; }
-
+        :root { --primary-color: #0067FF; --bg-color: #F4F7F9; --sidebar-bg: #1A1C1E; --text-main: #1D1D1F; --text-sub: #86868B; --border-color: #E5E5E7; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-color); margin: 0; height: 100vh; display: flex; overflow: hidden; }
+        
         /* 侧边栏 */
-        .sidebar { width: 280px; background: var(--sidebar-bg); color: white; padding: 25px 15px; display: flex; flex-direction: column; flex-shrink: 0; box-sizing: border-box;}
+        .sidebar { width: 260px; background: var(--sidebar-bg); color: white; padding: 25px 15px; display: flex; flex-direction: column; flex-shrink: 0; box-sizing: border-box;}
         .sidebar h2 { font-size: 18px; margin: 0 0 20px 0; border-left: 4px solid var(--primary-color); padding-left: 10px; }
-        .upload-area { border: 2px dashed #3A3D41; padding: 15px; border-radius: 10px; text-align: center; cursor: pointer; transition: 0.3s; margin-bottom: 20px; }
-        .upload-area:hover { border-color: var(--primary-color); background: #25282B; }
-        #fileInput { display: none; }
+        .status-bar { font-size: 12px; padding: 10px; background: #25282B; border-radius: 8px; margin-bottom: 20px; color: #00FF00; }
+        .sheet-label { font-size: 11px; color: #555; margin-bottom: 10px; text-transform: uppercase; }
         .sheet-container { flex-grow: 1; overflow-y: auto; margin-bottom: 20px; }
-        .sheet-btn { width: 100%; padding: 10px 15px; background: #2c2c2e; border: none; color: #ccc; text-align: left; margin-bottom: 5px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .sheet-btn { width: 100%; padding: 10px 15px; background: #2c2c2e; border: none; color: #ccc; text-align: left; margin-bottom: 5px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: 0.2s; }
         .sheet-btn.active { background: var(--primary-color); color: white; font-weight: 600; }
-        .btn-clear { background: #ff3b30; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 12px; width: 100%; opacity: 0.8; }
 
         /* 主区域 */
         .main-layout { flex-grow: 1; display: flex; flex-direction: column; }
-
-        /* 顶部详情卡片 - 增加到三行显示 */
         .top-section { padding: 20px 40px; background: white; border-bottom: 1px solid var(--border-color); display: grid; grid-template-columns: 1fr 300px; gap: 30px; }
         .detail-header h1 { margin: 0 0 15px 0; font-size: 24px; color: var(--text-main); }
+        
+        /* 详情网格 */
         .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
         .data-item { background: #f8f9fb; padding: 8px 12px; border-radius: 6px; border: 1px solid #f0f0f2; }
         .data-label { font-size: 10px; color: var(--text-sub); display: block; margin-bottom: 2px; }
         .data-value { font-size: 12px; font-weight: 600; color: var(--text-main); white-space: pre-line; }
 
-        .search-box input { width: 100%; padding: 12px; border-radius: 8px; border: 2px solid var(--primary-color); font-size: 14px; outline: none; }
+        .search-box input { width: 100%; padding: 12px; border-radius: 8px; border: 2px solid var(--primary-color); font-size: 14px; outline: none; box-sizing: border-box; }
 
-        /* 数据列表 - 列表项更紧凑 */
+        /* 表格区域 */
         .table-section { flex-grow: 1; padding: 0 40px 20px 40px; overflow-y: auto; background: white; }
         table { width: 100%; border-collapse: collapse; min-width: 1200px; }
         th { position: sticky; top: 0; background: #fff; text-align: left; padding: 12px; font-size: 11px; color: var(--text-sub); z-index: 10; border-bottom: 2px solid var(--border-color); }
         td { padding: 10px 12px; font-size: 12px; border-bottom: 1px solid #f0f0f2; cursor: pointer; }
         tr:hover td { background-color: #f0f7ff; }
         tr.selected td { background-color: #e8f3ff; font-weight: 600; color: var(--primary-color); }
-
-        .empty-state { text-align: center; margin-top: 100px; color: var(--text-sub); }
     </style>
 </head>
 <body>
 
 <div class="sidebar">
     <h2>BIM 数据中心</h2>
-    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-        <span style="font-size: 13px;">点击上传数据 Excel</span>
-        <input type="file" id="fileInput" accept=".xlsx, .xls" />
-    </div>
-    <div style="font-size: 11px; color: #555; margin-bottom: 10px;">楼栋列表</div>
-    <div class="sheet-container" id="sheetTabs"></div>
-    <button class="btn-clear" onclick="clearData()">清空缓存</button>
+    <div id="loadStatus" class="status-bar">正在连接云端数据...</div>
+    <div class="sheet-label">楼栋列表 (Sheet)</div>
+    <div id="sheetTabs" class="sheet-container"></div>
+    <div style="font-size: 10px; color: #444;">数据自动同步已开启</div>
 </div>
 
 <div class="main-layout">
@@ -71,38 +56,27 @@
         <div class="detail-header">
             <h1 id="res_name">请选择房间</h1>
             <div class="info-grid">
-                <div class="data-item"><span class="data-label">楼号</span><span class="data-value" id="res_build">-</span></div>
-                <div class="data-item"><span class="data-label">楼层</span><span class="data-value" id="res_floor">-</span></div>
-                <div class="data-item"><span class="data-label">房间号</span><span class="data-value" id="res_no">-</span></div>
-                <div class="data-item"><span class="data-label">面积(M2)</span><span class="data-value" id="res_area">-</span></div>
-                <div class="data-item"><span class="data-label">地面做法</span><span class="data-value" id="res_floor_finish">-</span></div>
-                <div class="data-item"><span class="data-label">墙面做法</span><span class="data-value" id="res_wall_finish">-</span></div>
-                <div class="data-item"><span class="data-label">踢脚做法</span><span class="data-value" id="res_skirting">-</span></div>
-                <div class="data-item"><span class="data-label">吊顶做法</span><span class="data-value" id="res_ceiling">-</span></div>
-                <div class="data-item"><span class="data-label">吊顶高度</span><span class="data-value" id="res_height">-</span></div>
+                <div class="data-item"><span class="data-label">楼号</span><span id="res_build" class="data-value">-</span></div>
+                <div class="data-item"><span class="data-label">楼层</span><span id="res_floor" class="data-value">-</span></div>
+                <div class="data-item"><span class="data-label">房间号</span><span id="res_no" class="data-value">-</span></div>
+                <div class="data-item"><span class="data-label">面积(M2)</span><span id="res_area" class="data-value">-</span></div>
+                <div class="data-item"><span class="data-label">地面做法</span><span id="res_floor_finish" class="data-value">-</span></div>
+                <div class="data-item"><span class="data-label">墙面做法</span><span id="res_wall_finish" class="data-value">-</span></div>
+                <div class="data-item"><span class="data-label">踢脚做法</span><span id="res_skirting" class="data-value">-</span></div>
+                <div class="data-item"><span class="data-label">吊顶做法</span><span id="res_ceiling" class="data-value">-</span></div>
+                <div class="data-item"><span class="data-label">吊顶高度</span><span id="res_height" class="data-value">-</span></div>
             </div>
         </div>
         <div class="search-box">
-            <p style="font-size: 13px; font-weight:600; color:var(--primary-color); margin-bottom: 8px;">🔍 房间号搜索联动:</p>
-            <input type="text" id="searchInput" placeholder="输入编号自动更新..." oninput="handleSearch()">
+            <p style="font-size: 13px; font-weight:600; color:var(--primary-color); margin:0 0 8px 0;">🔍 房间号实时搜索:</p>
+            <input type="text" id="searchInput" placeholder="输入房间号..." oninput="handleSearch()">
         </div>
     </div>
-
     <div class="table-section">
-        <div id="emptyMsg" class="empty-state">请上传 Excel 文件</div>
-        <table id="dataTable" style="display: none;">
+        <table id="dataTable">
             <thead>
                 <tr>
-                    <th>楼号</th>
-                    <th>楼层</th>
-                    <th>房间号</th>
-                    <th>房间名称</th>
-                    <th>面积</th>
-                    <th>地面</th>
-                    <th>墙面</th>
-                    <th>踢脚</th>
-                    <th>吊顶</th>
-                    <th>吊顶高度</th>
+                    <th>楼号</th><th>楼层</th><th>房间号</th><th>房间名称</th><th>面积</th><th>地面</th><th>墙面</th><th>踢脚</th><th>吊顶</th><th>高度</th>
                 </tr>
             </thead>
             <tbody id="tableBody"></tbody>
@@ -111,51 +85,60 @@
 </div>
 
 <script>
+    // 【配置中心】只需修改下面这个链接
+    const EXCEL_URL = '这里替换成你从GitHub复制的那个Raw下载链接';
+
     let allWorkbookData = {}; 
     let currentSheetName = "";
 
     window.onload = () => {
-        const saved = localStorage.getItem('bim_full_attr_v1');
+        // 优先显示缓存，防止白屏
+        const saved = localStorage.getItem('bim_cloud_cache');
         if (saved) {
             allWorkbookData = JSON.parse(saved);
-            renderSheetTabs();
+            initInterface();
+        }
+        // 从云端抓取最新
+        loadCloudData();
+    };
+
+    function loadCloudData() {
+        fetch(EXCEL_URL)
+            .then(res => res.arrayBuffer())
+            .then(buffer => {
+                const workbook = XLSX.read(new Uint8Array(buffer), {type: 'array'});
+                allWorkbookData = {};
+                workbook.SheetNames.forEach(name => {
+                    const sheet = workbook.Sheets[name];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    let headerIdx = rows.findIndex(r => r.includes('房间号') || r.includes('Room-number'));
+                    if (headerIdx !== -1) allWorkbookData[name] = XLSX.utils.sheet_to_json(sheet, { range: headerIdx });
+                });
+                localStorage.setItem('bim_cloud_cache', JSON.stringify(allWorkbookData));
+                document.getElementById('loadStatus').innerText = "● 云端数据已同步";
+                initInterface();
+            })
+            .catch(err => {
+                document.getElementById('loadStatus').innerText = "○ 使用本地缓存中";
+                document.getElementById('loadStatus').style.color = "#888";
+            });
+    }
+
+    function initInterface() {
+        renderSheetTabs();
+        if(!currentSheetName) {
             const firstSheet = Object.keys(allWorkbookData)[0];
             if(firstSheet) switchSheet(firstSheet);
         }
-    };
-
-    document.getElementById('fileInput').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            const data = new Uint8Array(event.target.result);
-            const workbook = XLSX.read(data, {type: 'array'});
-            allWorkbookData = {};
-            workbook.SheetNames.forEach(name => {
-                const sheet = workbook.Sheets[name];
-                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-                let headerIdx = rows.findIndex(r => r.includes('房间号') || r.includes('Room-number'));
-                if (headerIdx !== -1) {
-                    allWorkbookData[name] = XLSX.utils.sheet_to_json(sheet, { range: headerIdx });
-                }
-            });
-            localStorage.setItem('bim_full_attr_v1', JSON.stringify(allWorkbookData));
-            renderSheetTabs();
-            switchSheet(workbook.SheetNames[0]);
-        };
-        reader.readAsArrayBuffer(file);
-    });
+    }
 
     function renderSheetTabs() {
         const container = document.getElementById('sheetTabs');
         container.innerHTML = '';
         Object.keys(allWorkbookData).forEach(name => {
             const btn = document.createElement('button');
-            btn.className = 'sheet-btn';
-            btn.innerText = "🏢 " + name;
-            btn.onclick = () => switchSheet(name);
-            btn.id = 'tab-' + name;
+            btn.className = 'sheet-btn'; btn.innerText = "🏢 " + name;
+            btn.onclick = () => switchSheet(name); btn.id = 'tab-' + name;
             container.appendChild(btn);
         });
     }
@@ -168,15 +151,13 @@
         document.getElementById('searchInput').value = "";
     }
 
-    function updateDetailPanel(item, buildName) {
+    function updateDetailPanel(item) {
         if(!item) return;
         document.getElementById('res_name').innerText = (item['ROOM NAME'] || item['房间名称'] || '未命名房间').trim();
-        document.getElementById('res_build').innerText = buildName || item['BUILDIN NO.'] || item['楼号'] || currentSheetName;
+        document.getElementById('res_build').innerText = item['楼号'] || item['BUILDIN NO.'] || currentSheetName;
         document.getElementById('res_no').innerText = item['Room-number'] || item['房间号'] || '-';
         document.getElementById('res_floor').innerText = item['BUILDING FLOOR'] || item['楼层'] || '-';
         document.getElementById('res_area').innerText = (item['NET AREA'] || item['净面积(M2)'] || '-') + ' M2';
-        
-        // 核心属性映射
         document.getElementById('res_floor_finish').innerText = item['FLOOR'] || item['地面做法'] || '-';
         document.getElementById('res_wall_finish').innerText = item['WALL'] || item['墙面做法 '] || item['墙面做法'] || '-';
         document.getElementById('res_skirting').innerText = item['SKIRTING FINISH'] || item['踢脚作法'] || '-';
@@ -186,41 +167,13 @@
 
     function renderTable(data) {
         const tbody = document.getElementById('tableBody');
-        const table = document.getElementById('dataTable');
-        const empty = document.getElementById('emptyMsg');
         tbody.innerHTML = '';
-        if (!data || data.length === 0) {
-            table.style.display = 'none';
-            empty.style.display = 'block';
-            return;
-        }
-        table.style.display = 'table';
-        empty.style.display = 'none';
-
         data.forEach((item) => {
             const no = item['Room-number'] || item['房间号'] || '-';
-            if (no === '-' && !(item['ROOM NAME'] || item['房间名称'])) return;
-
+            if (no === '-' && !item['房间名称']) return;
             const tr = document.createElement('tr');
-            const build = item['BUILDIN NO.'] || item['楼号'] || currentSheetName;
-            
-            tr.innerHTML = `
-                <td style="color:#888">${build}</td>
-                <td>${item['BUILDING FLOOR'] || item['楼层'] || '-'}</td>
-                <td style="font-weight:600">${no}</td>
-                <td>${item['ROOM NAME'] || item['房间名称'] || '-'}</td>
-                <td>${item['NET AREA'] || item['净面积(M2)'] || '-'}</td>
-                <td>${item['FLOOR'] || item['地面做法'] || '-'}</td>
-                <td>${item['WALL'] || item['墙面做法 '] || '-'}</td>
-                <td>${item['SKIRTING FINISH'] || item['踢脚作法'] || '-'}</td>
-                <td>${item['CEILING'] || item['吊顶做法'] || '-'}</td>
-                <td>${item['CEILING HEIGHT'] || item['吊顶高度'] || '-'}</td>
-            `;
-            tr.onclick = () => {
-                document.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
-                tr.classList.add('selected');
-                updateDetailPanel(item, build);
-            };
+            tr.innerHTML = `<td>${item['楼号'] || currentSheetName}</td><td>${item['楼层'] || '-'}</td><td style="font-weight:600">${no}</td><td>${item['房间名称'] || item['ROOM NAME'] || '-'}</td><td>${item['净面积(M2)'] || item['NET AREA'] || '-'}</td><td>${item['地面做法'] || item['FLOOR'] || '-'}</td><td>${item['墙面做法'] || item['WALL'] || '-'}</td><td>${item['踢脚作法'] || item['SKIRTING FINISH'] || '-'}</td><td>${item['吊顶做法'] || item['CEILING'] || '-'}</td><td>${item['吊顶高度'] || item['CEILING HEIGHT'] || '-'}</td>`;
+            tr.onclick = () => { document.querySelectorAll('tr').forEach(r => r.classList.remove('selected')); tr.classList.add('selected'); updateDetailPanel(item); };
             tbody.appendChild(tr);
         });
     }
@@ -228,24 +181,13 @@
     function handleSearch() {
         const val = document.getElementById('searchInput').value.trim().toLowerCase();
         const data = allWorkbookData[currentSheetName] || [];
-        const filtered = data.filter(i => {
-            const no = String(i['Room-number'] || i['房间号'] || '').toLowerCase();
-            return no.includes(val);
-        });
+        const filtered = data.filter(i => String(i['Room-number'] || i['房间号'] || '').toLowerCase().includes(val));
         renderTable(filtered);
         if (filtered.length > 0 && val !== "") {
-            updateDetailPanel(filtered[0], currentSheetName);
+            updateDetailPanel(filtered[0]);
             if(document.querySelector('#tableBody tr')) document.querySelector('#tableBody tr').classList.add('selected');
         }
     }
-
-    function clearData() {
-        if (confirm('确定清空所有楼栋数据吗？')) {
-            localStorage.removeItem('bim_full_attr_v1');
-            location.reload();
-        }
-    }
 </script>
-
 </body>
 </html>
